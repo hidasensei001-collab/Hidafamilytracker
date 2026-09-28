@@ -93,7 +93,27 @@
 
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: #fff; }
     .brand i { color: var(--balance); }
-    .wita-clock { font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; color: #38bdf8; }
+    
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--income);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--income);
+      box-shadow: 0 0 8px var(--income);
+    }
 
     /* CONTROLS & TABS */
     .controls-row {
@@ -351,7 +371,9 @@
       <div class="brand">
         <i class="fa-solid fa-wallet"></i> Hida Family Tracker
       </div>
-      <div class="wita-clock" id="clockWITA">WITA: --:--:--</div>
+      <div class="status-badge">
+        <div class="status-dot"></div> Auto Sync Online
+      </div>
     </div>
 
     <!-- TAB NAVIGATION -->
@@ -369,7 +391,7 @@
         <div class="stat-card balance-card">
           <div class="stat-lbl">Sisa Saldo Saat Ini</div>
           <div class="stat-val" id="dashBalance">Rp 0</div>
-          <div class="stat-subtext" id="dashBalanceSub">Total Pemasukan - Total Pengeluaran</div>
+          <div class="stat-subtext">Total Pemasukan - Total Pengeluaran</div>
         </div>
 
         <div class="stat-card income-card">
@@ -415,7 +437,6 @@
       <div class="glass-card">
         <h3 style="margin-bottom: 14px; font-size: 15px;"><i class="fa-solid fa-circle-plus" style="color: var(--balance);"></i> Form Input Transaksi Keuangan</h3>
         
-        <!-- PILIH TIPE TRANSAKSI (PEMASUKAN / PENGELUARAN) -->
         <label>Pilih Tipe Transaksi</label>
         <div class="type-selector">
           <button type="button" class="type-btn active-income" id="btnTypeIncome" onclick="selectType('pemasukan')">
@@ -434,7 +455,7 @@
           <div>
             <label>Kategori</label>
             <select id="inputCategory">
-              <!-- Populated dynamically based on type -->
+              <!-- Populated dynamically -->
             </select>
           </div>
         </div>
@@ -455,7 +476,7 @@
           <span id="amountPreview" style="font-size: 15px; font-weight: 800; color: var(--income);">+ Rp 0</span>
         </div>
 
-        <button class="btn-submit" onclick="submitTransaction()"><i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi</button>
+        <button class="btn-submit" onclick="submitTransaction()"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan Transaksi (Auto Sync)</button>
       </div>
     </div>
 
@@ -503,11 +524,15 @@
     <div id="sec-settings" class="glass-card" style="display:none;">
       <h3 style="margin-bottom: 14px; font-size: 15px;"><i class="fa-solid fa-sliders"></i> Pengaturan Aplikasi</h3>
 
-      <label>Ubah Password Akses</label>
-      <input type="password" id="newPassInput" placeholder="Password baru...">
-      <button class="btn-submit" onclick="changePassword()" style="margin-bottom: 20px;">Perbarui Password</button>
+      <label>URL Firebase Cloud Database (Server Terhubung)</label>
+      <input type="text" id="firebaseUrlInput" placeholder="https://database-kamu-default-rtdb.firebaseio.com/">
+      <button class="btn-submit" onclick="saveFirebaseUrl()" style="margin-bottom: 18px;">Simpan URL Database Baru</button>
 
-      <label>Backup & Restore Data JSON</label>
+      <label>Ubah Password Akses Aplikasi</label>
+      <input type="password" id="newPassInput" placeholder="Password baru...">
+      <button class="btn-submit" onclick="changePassword()" style="margin-bottom: 18px;">Perbarui Password</button>
+
+      <label>Backup & Restore Offline (JSON)</label>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <button class="btn-submit" onclick="exportDataJSON()" style="background: var(--glass-card); border: 1px solid var(--glass-border); color: #fff;">
           <i class="fa-solid fa-download"></i> Export JSON
@@ -525,6 +550,9 @@
 
   <script>
     const DEFAULT_PASS = "maubuka";
+    const DEFAULT_FIREBASE_URL = "https://master-prompt-db-default-rtdb.firebaseio.com/";
+    let firebaseDbUrl = localStorage.getItem('hida_family_firebase_url') || DEFAULT_FIREBASE_URL;
+
     let currentSelectedType = "pemasukan";
 
     const CATEGORIES = {
@@ -545,16 +573,6 @@
       const dd = String(today.getDate()).padStart(2, '0');
       document.getElementById('inputDate').value = `${yyyy}-${mm}-${dd}`;
     }
-
-    // Realtime Clock WITA (UTC+8)
-    function updateClock() {
-      const now = new Date();
-      const options = { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-      const timeStr = new Intl.DateTimeFormat('id-ID', options).format(now);
-      document.getElementById('clockWITA').innerText = `WITA: ${timeStr}`;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
 
     // Lock System
     function unlockApp() {
@@ -577,15 +595,47 @@
     }
 
     // Init App
-    function initApp() {
+    async function initApp() {
       setTodayDateInput();
-      loadData();
+      document.getElementById('firebaseUrlInput').value = firebaseDbUrl;
       updateCategoryDropdown();
+      await loadData();
       renderAllViews();
     }
 
-    // Storage Management
-    function loadData() {
+    // AUTO-POLLING BACKGROUND SYNC (Memeriksa perubahan server setiap 3 detik)
+    setInterval(async () => {
+      if (document.getElementById('mainApp').style.display !== 'none') {
+        await loadData(true);
+      }
+    }, 3000);
+
+    // FETCH FROM FIREBASE CLOUD DATABASE
+    async function loadData(silent = false) {
+      if (!firebaseDbUrl) return;
+      try {
+        const cleanUrl = firebaseDbUrl.replace(/\/$/, '');
+        const res = await fetch(`${cleanUrl}/hida_family_tracker.json`);
+        const data = await res.json();
+        
+        if (data) {
+          const prevStr = JSON.stringify(appData);
+          const newStr = JSON.stringify(data);
+
+          if (prevStr !== newStr) {
+            appData = data;
+            if (!appData.transactions) appData.transactions = [];
+            localStorage.setItem('hida_family_data', newStr);
+            renderAllViews();
+          }
+        }
+      } catch(e) {
+        if (!silent) console.error("Firebase load error, fallback to LocalStorage", e);
+        loadLocal();
+      }
+    }
+
+    function loadLocal() {
       const saved = localStorage.getItem('hida_family_data');
       if (saved) {
         try {
@@ -597,8 +647,21 @@
       }
     }
 
-    function saveData() {
+    // SAVE TO FIREBASE CLOUD & LOCALSTORAGE
+    async function saveData() {
       localStorage.setItem('hida_family_data', JSON.stringify(appData));
+      if (firebaseDbUrl) {
+        try {
+          const cleanUrl = firebaseDbUrl.replace(/\/$/, '');
+          await fetch(`${cleanUrl}/hida_family_tracker.json`, {
+            method: 'PUT',
+            body: JSON.stringify(appData),
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch(e) {
+          console.error("Firebase save sync error", e);
+        }
+      }
     }
 
     // Switch Tabs
@@ -661,7 +724,7 @@
     }
 
     // Submit New Transaction
-    function submitTransaction() {
+    async function submitTransaction() {
       const dateVal = document.getElementById('inputDate').value;
       const category = document.getElementById('inputCategory').value;
       const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
@@ -685,21 +748,21 @@
       };
 
       appData.transactions.unshift(newItem);
-      saveData();
+      await saveData();
 
       document.getElementById('inputAmount').value = '';
       document.getElementById('inputNotes').value = '';
       previewAmountFormat();
 
-      showToast("✅ Transaksi berhasil disimpan!");
+      showToast("⚡ Tersimpan & ter-sync ke seluruh HP!");
       switchTab('dashboard');
     }
 
     // Delete Transaction
-    function deleteTransaction(id) {
-      if (confirm("Hapus catatan transaksi ini?")) {
+    async function deleteTransaction(id) {
+      if (confirm("Hapus catatan transaksi ini dari seluruh HP?")) {
         appData.transactions = appData.transactions.filter(t => t.id !== id);
-        saveData();
+        await saveData();
         showToast("🗑️ Transaksi berhasil dihapus");
         renderAllViews();
       }
@@ -857,6 +920,14 @@
     }
 
     // SETTINGS & BACKUP/RESTORE
+    function saveFirebaseUrl() {
+      const url = document.getElementById('firebaseUrlInput').value.trim();
+      firebaseDbUrl = url || DEFAULT_FIREBASE_URL;
+      localStorage.setItem('hida_family_firebase_url', firebaseDbUrl);
+      showToast("💾 URL Database tersimpan!");
+      loadData();
+    }
+
     function changePassword() {
       const newP = document.getElementById('newPassInput').value.trim();
       if (newP) {
@@ -877,19 +948,19 @@
       showToast("📥 Backup data berhasil diunduh!");
     }
 
-    function importDataJSON(event) {
+    async function importDataJSON(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = async function(e) {
         try {
           const importedData = JSON.parse(e.target.result);
           if (importedData && Array.isArray(importedData.transactions)) {
             appData = importedData;
-            saveData();
+            await saveData();
             renderAllViews();
-            showToast("✅ Data berhasil di-import!");
+            showToast("✅ Data berhasil di-import & di-sync!");
           } else {
             alert("❌ Format file JSON tidak valid!");
           }
