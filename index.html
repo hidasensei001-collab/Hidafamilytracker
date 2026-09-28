@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Hida Family Tracker - Catatan Keuangan Keluarga</title>
+  
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --bg-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop');
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --income: #10b981;
+      --income-bg: rgba(16, 185, 129, 0.15);
+      --expense: #ef4444;
+      --expense-bg: rgba(239, 68, 68, 0.15);
+      --balance: #06b6d4;
+      --glass-bg: rgba(15, 23, 42, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-card: rgba(30, 41, 59, 0.75);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    
+    body {
+      background: var(--bg-image) no-repeat center center fixed;
+      background-size: cover;
+      color: var(--text-main);
+      min-height: 100vh;
+      padding-bottom: 40px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: -1;
+    }
+
+    /* LOCK SCREEN */
+    #lockScreen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .lock-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      padding: 32px 24px;
+      border-radius: 24px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .lock-box i { font-size: 44px; color: var(--balance); margin-bottom: 16px; }
+    .lock-box h2 { font-size: 22px; margin-bottom: 8px; font-weight: 800; }
+    .lock-box p { font-size: 13px; color: var(--text-sub); margin-bottom: 20px; }
+
+    /* LAYOUT CONTAINER */
+    .container { max-width: 950px; margin: 0 auto; padding: 12px; }
+
+    /* NAVBAR */
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      padding: 14px 20px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: #fff; }
+    .brand i { color: var(--balance); }
+    .wita-clock { font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; color: #38bdf8; }
+
+    /* CONTROLS & TABS */
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab-btn {
+      background: var(--glass-card);
+      border: 1px solid var(--glass-border);
+      color: var(--text-sub);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn.active, .tab-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    /* GLASS CARDS & FORM */
+    .glass-card {
+      background: var(--glass-card);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    label { font-size: 11px; font-weight: 700; color: var(--text-sub); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      padding: 11px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border 0.3s;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    /* TYPE SELECTOR BUTTONS */
+    .type-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .type-btn {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(15, 23, 42, 0.5);
+      color: var(--text-sub);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .type-btn.active-income {
+      background: var(--income-bg);
+      border-color: var(--income);
+      color: var(--income);
+    }
+
+    .type-btn.active-expense {
+      background: var(--expense-bg);
+      border-color: var(--expense);
+      color: var(--expense);
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary), var(--balance));
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-submit:active { transform: scale(0.98); }
+
+    /* DASHBOARD CARDS GRID */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: var(--glass-card);
+      border: 1px solid var(--glass-border);
+      padding: 16px;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--primary);
+    }
+
+    .stat-card.balance-card::after { background: var(--balance); }
+    .stat-card.income-card::after { background: var(--income); }
+    .stat-card.expense-card::after { background: var(--expense); }
+
+    .stat-val { font-size: 20px; font-weight: 800; color: #fff; margin: 6px 0; }
+    .stat-lbl { font-size: 10px; color: var(--text-sub); text-transform: uppercase; font-weight: 700; }
+    .stat-subtext { font-size: 10px; color: var(--text-sub); font-weight: 600; }
+
+    /* DATA TABLE & LIST */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--text-sub);
+      padding: 10px 12px;
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: var(--text-main);
+    }
+
+    tr:hover { background: rgba(255,255,255,0.03); }
+
+    .badge-type {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge-income { background: var(--income-bg); color: var(--income); }
+    .badge-expense { background: var(--expense-bg); color: var(--expense); }
+
+    .btn-action-sm {
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: none;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-del-sm { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .btn-del-sm:hover { background: var(--expense); color: white; }
+
+    /* TOAST NOTIFICATION */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--primary);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease;
+      z-index: 100000;
+    }
+
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- LOCK SCREEN -->
+  <div id="lockScreen">
+    <div class="lock-box">
+      <i class="fa-solid fa-house-chimney-user"></i>
+      <h2>Hida Family Tracker</h2>
+      <p>Masukkan password untuk mengakses pencatatan keuangan keluarga.</p>
+      <input type="password" id="passInput" placeholder="Password akses..." onkeydown="if(event.key==='Enter') unlockApp()">
+      <button class="btn-submit" onclick="unlockApp()">Buka Akses <i class="fa-solid fa-key"></i></button>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="container" id="mainApp" style="display:none;">
+
+    <!-- NAVBAR -->
+    <div class="nav-bar">
+      <div class="brand">
+        <i class="fa-solid fa-wallet"></i> Hida Family Tracker
+      </div>
+      <div class="wita-clock" id="clockWITA">WITA: --:--:--</div>
+    </div>
+
+    <!-- TAB NAVIGATION -->
+    <div class="controls-row">
+      <button class="tab-btn active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Dashboard Saldo</button>
+      <button class="tab-btn" onclick="switchTab('input')"><i class="fa-solid fa-pen-to-square"></i> Input Transaksi</button>
+      <button class="tab-btn" onclick="switchTab('history')"><i class="fa-solid fa-list-ul"></i> Rekap & Riwayat</button>
+      <button class="tab-btn" onclick="switchTab('settings')"><i class="fa-solid fa-sliders"></i> Pengaturan</button>
+      <button class="tab-btn" onclick="lockApp()"><i class="fa-solid fa-lock"></i> Kunci</button>
+    </div>
+
+    <!-- SECTION 1: DASHBOARD -->
+    <div id="sec-dashboard">
+      <div class="stat-grid">
+        <div class="stat-card balance-card">
+          <div class="stat-lbl">Sisa Saldo Saat Ini</div>
+          <div class="stat-val" id="dashBalance">Rp 0</div>
+          <div class="stat-subtext" id="dashBalanceSub">Total Pemasukan - Total Pengeluaran</div>
+        </div>
+
+        <div class="stat-card income-card">
+          <div class="stat-lbl">Pemasukan (Bulan Ini)</div>
+          <div class="stat-val" id="dashIncomeMonth" style="color: var(--income);">Rp 0</div>
+          <div class="stat-subtext" id="dashIncomeMonthLbl">Bulan Berjalan</div>
+        </div>
+
+        <div class="stat-card expense-card">
+          <div class="stat-lbl">Pengeluaran (Bulan Ini)</div>
+          <div class="stat-val" id="dashExpenseMonth" style="color: var(--expense);">Rp 0</div>
+          <div class="stat-subtext" id="dashExpenseMonthLbl">Bulan Berjalan</div>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 15px;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--balance);"></i> Transaksi Terakhir</h3>
+          <button onclick="switchTab('input')" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer; font-size: 11px;">+ Tambah Baru</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Tipe</th>
+                <th>Kategori</th>
+                <th>Keterangan</th>
+                <th>Nominal (Rp)</th>
+              </tr>
+            </thead>
+            <tbody id="dashRecentTableBody">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: INPUT TRANSAKSI -->
+    <div id="sec-input" style="display:none;">
+      <div class="glass-card">
+        <h3 style="margin-bottom: 14px; font-size: 15px;"><i class="fa-solid fa-circle-plus" style="color: var(--balance);"></i> Form Input Transaksi Keuangan</h3>
+        
+        <!-- PILIH TIPE TRANSAKSI (PEMASUKAN / PENGELUARAN) -->
+        <label>Pilih Tipe Transaksi</label>
+        <div class="type-selector">
+          <button type="button" class="type-btn active-income" id="btnTypeIncome" onclick="selectType('pemasukan')">
+            <i class="fa-solid fa-circle-arrow-down"></i> Pemasukan (+)
+          </button>
+          <button type="button" class="type-btn" id="btnTypeExpense" onclick="selectType('pengeluaran')">
+            <i class="fa-solid fa-circle-arrow-up"></i> Pengeluaran (-)
+          </button>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label>Tanggal Transaksi</label>
+            <input type="date" id="inputDate">
+          </div>
+          <div>
+            <label>Kategori</label>
+            <select id="inputCategory">
+              <!-- Populated dynamically based on type -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label>Nominal (Rp)</label>
+            <input type="number" id="inputAmount" placeholder="Misal: 150000" min="0" oninput="previewAmountFormat()">
+          </div>
+          <div>
+            <label>Keterangan / Detail</label>
+            <input type="text" id="inputNotes" placeholder="Misal: Gaji Bulanan / Belanja Dapur / Bensin">
+          </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.04); padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-sub); font-weight: 600;">Format Nominal:</span>
+          <span id="amountPreview" style="font-size: 15px; font-weight: 800; color: var(--income);">+ Rp 0</span>
+        </div>
+
+        <button class="btn-submit" onclick="submitTransaction()"><i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi</button>
+      </div>
+    </div>
+
+    <!-- SECTION 3: REKAP & RIWAYAT -->
+    <div id="sec-history" style="display:none;">
+      <div class="glass-card">
+        <h3 style="margin-bottom: 14px; font-size: 15px;"><i class="fa-solid fa-filter" style="color: var(--balance);"></i> Filter Rekap Bulanan</h3>
+        
+        <label>Pilih Bulan & Tahun</label>
+        <select id="selectMonthFilter" onchange="renderHistoryMonth()">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <h3 style="font-size: 15px;" id="historyTitleLbl">Detail Rekap</h3>
+          <div style="font-size: 12px; font-weight: 700; display: flex; gap: 12px;">
+            <span style="color: var(--income);" id="historyIncomeTotal">+ Rp 0</span>
+            <span style="color: var(--expense);" id="historyExpenseTotal">- Rp 0</span>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Tipe</th>
+                <th>Kategori</th>
+                <th>Keterangan</th>
+                <th>Nominal (Rp)</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: SETTINGS -->
+    <div id="sec-settings" class="glass-card" style="display:none;">
+      <h3 style="margin-bottom: 14px; font-size: 15px;"><i class="fa-solid fa-sliders"></i> Pengaturan Aplikasi</h3>
+
+      <label>Ubah Password Akses</label>
+      <input type="password" id="newPassInput" placeholder="Password baru...">
+      <button class="btn-submit" onclick="changePassword()" style="margin-bottom: 20px;">Perbarui Password</button>
+
+      <label>Backup & Restore Data JSON</label>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button class="btn-submit" onclick="exportDataJSON()" style="background: var(--glass-card); border: 1px solid var(--glass-border); color: #fff;">
+          <i class="fa-solid fa-download"></i> Export JSON
+        </button>
+        <button class="btn-submit" onclick="document.getElementById('importFileInput').click()" style="background: var(--glass-card); border: 1px solid var(--glass-border); color: #fff;">
+          <i class="fa-solid fa-upload"></i> Import JSON
+        </button>
+        <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importDataJSON(event)">
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast">Notifikasi</div>
+
+  <script>
+    const DEFAULT_PASS = "maubuka";
+    let currentSelectedType = "pemasukan";
+
+    const CATEGORIES = {
+      pemasukan: ["Gaji / Utama", "Usaha / Bisnis", "Bonus / THR", "Transfer Masuk", "Lainnya"],
+      pengeluaran: ["Dapur & Makanan", "Tagihan & Listrik", "Bensin & Transport", "Belanja Rumah", "Kesehatan", "Pendidikan", "Hiburan & Rekreasi", "Lainnya"]
+    };
+
+    // State Data
+    let appData = {
+      transactions: [] // Array of { id, date, type, category, amount, notes, monthKey }
+    };
+
+    // Initial Date setup
+    function setTodayDateInput() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('inputDate').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Realtime Clock WITA (UTC+8)
+    function updateClock() {
+      const now = new Date();
+      const options = { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const timeStr = new Intl.DateTimeFormat('id-ID', options).format(now);
+      document.getElementById('clockWITA').innerText = `WITA: ${timeStr}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Lock System
+    function unlockApp() {
+      const input = document.getElementById('passInput').value;
+      const savedPass = localStorage.getItem('hida_family_pass') || DEFAULT_PASS;
+
+      if (input === savedPass) {
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        initApp();
+      } else {
+        alert('❌ Password Salah!');
+      }
+    }
+
+    function lockApp() {
+      document.getElementById('lockScreen').style.display = 'flex';
+      document.getElementById('mainApp').style.display = 'none';
+      document.getElementById('passInput').value = '';
+    }
+
+    // Init App
+    function initApp() {
+      setTodayDateInput();
+      loadData();
+      updateCategoryDropdown();
+      renderAllViews();
+    }
+
+    // Storage Management
+    function loadData() {
+      const saved = localStorage.getItem('hida_family_data');
+      if (saved) {
+        try {
+          appData = JSON.parse(saved);
+          if (!appData.transactions) appData.transactions = [];
+        } catch(e) {
+          appData = { transactions: [] };
+        }
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem('hida_family_data', JSON.stringify(appData));
+    }
+
+    // Switch Tabs
+    function switchTab(tab) {
+      const tabKeys = ['dashboard', 'input', 'history', 'settings'];
+      tabKeys.forEach(t => {
+        const el = document.getElementById(`sec-${t}`);
+        if (el) el.style.display = t === tab ? 'block' : 'none';
+      });
+
+      document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+        if (idx < tabKeys.length) {
+          btn.classList.toggle('active', tabKeys[idx] === tab);
+        }
+      });
+
+      if (tab === 'history') populateMonthDropdown();
+      renderAllViews();
+    }
+
+    // Select Type Pemasukan / Pengeluaran
+    function selectType(type) {
+      currentSelectedType = type;
+      const btnIn = document.getElementById('btnTypeIncome');
+      const btnEx = document.getElementById('btnTypeExpense');
+
+      if (type === 'pemasukan') {
+        btnIn.className = 'type-btn active-income';
+        btnEx.className = 'type-btn';
+      } else {
+        btnIn.className = 'type-btn';
+        btnEx.className = 'type-btn active-expense';
+      }
+
+      updateCategoryDropdown();
+      previewAmountFormat();
+    }
+
+    function updateCategoryDropdown() {
+      const catSelect = document.getElementById('inputCategory');
+      catSelect.innerHTML = '';
+      CATEGORIES[currentSelectedType].forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.innerText = cat;
+        catSelect.appendChild(opt);
+      });
+    }
+
+    function previewAmountFormat() {
+      const amt = parseFloat(document.getElementById('inputAmount').value) || 0;
+      const preview = document.getElementById('amountPreview');
+      if (currentSelectedType === 'pemasukan') {
+        preview.style.color = 'var(--income)';
+        preview.innerText = `+ ${formatRupiah(amt)}`;
+      } else {
+        preview.style.color = 'var(--expense)';
+        preview.innerText = `- ${formatRupiah(amt)}`;
+      }
+    }
+
+    // Submit New Transaction
+    function submitTransaction() {
+      const dateVal = document.getElementById('inputDate').value;
+      const category = document.getElementById('inputCategory').value;
+      const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
+      const notes = document.getElementById('inputNotes').value.trim();
+
+      if (!dateVal || amount <= 0) {
+        showToast("⚠️ Mohon isi tanggal dan nominal yang valid!");
+        return;
+      }
+
+      const monthKey = dateVal.substring(0, 7);
+
+      const newItem = {
+        id: Date.now(),
+        date: dateVal,
+        type: currentSelectedType,
+        category,
+        amount,
+        notes,
+        monthKey
+      };
+
+      appData.transactions.unshift(newItem);
+      saveData();
+
+      document.getElementById('inputAmount').value = '';
+      document.getElementById('inputNotes').value = '';
+      previewAmountFormat();
+
+      showToast("✅ Transaksi berhasil disimpan!");
+      switchTab('dashboard');
+    }
+
+    // Delete Transaction
+    function deleteTransaction(id) {
+      if (confirm("Hapus catatan transaksi ini?")) {
+        appData.transactions = appData.transactions.filter(t => t.id !== id);
+        saveData();
+        showToast("🗑️ Transaksi berhasil dihapus");
+        renderAllViews();
+      }
+    }
+
+    // Current Month Key "YYYY-MM"
+    function getCurrentMonthKey() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      return `${yyyy}-${mm}`;
+    }
+
+    // Render Views
+    function renderAllViews() {
+      renderDashboard();
+      renderHistoryMonth();
+    }
+
+    // 1. DASHBOARD RENDER
+    function renderDashboard() {
+      const currentMonth = getCurrentMonthKey();
+      let totalIncomeAll = 0;
+      let totalExpenseAll = 0;
+      let totalIncomeMonth = 0;
+      let totalExpenseMonth = 0;
+
+      appData.transactions.forEach(t => {
+        if (t.type === 'pemasukan') {
+          totalIncomeAll += t.amount;
+          if (t.monthKey === currentMonth) totalIncomeMonth += t.amount;
+        } else {
+          totalExpenseAll += t.amount;
+          if (t.monthKey === currentMonth) totalExpenseMonth += t.amount;
+        }
+      });
+
+      const sisaSaldo = totalIncomeAll - totalExpenseAll;
+      const dashBalEl = document.getElementById('dashBalance');
+      dashBalEl.innerText = formatRupiah(sisaSaldo);
+      dashBalEl.style.color = sisaSaldo < 0 ? 'var(--expense)' : '#fff';
+
+      document.getElementById('dashIncomeMonth').innerText = `+ ${formatRupiah(totalIncomeMonth)}`;
+      document.getElementById('dashExpenseMonth').innerText = `- ${formatRupiah(totalExpenseMonth)}`;
+
+      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const [yearStr, monthStr] = currentMonth.split('-');
+      const monthLabel = `${monthNames[parseInt(monthStr) - 1]} ${yearStr}`;
+
+      document.getElementById('dashIncomeMonthLbl').innerText = `Periode: ${monthLabel}`;
+      document.getElementById('dashExpenseMonthLbl').innerText = `Periode: ${monthLabel}`;
+
+      // Recent Transactions Table
+      const recentTbody = document.getElementById('dashRecentTableBody');
+      recentTbody.innerHTML = '';
+      const recentList = appData.transactions.slice(0, 5);
+
+      if (recentList.length === 0) {
+        recentTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-sub);">Belum ada catatan transaksi.</td></tr>`;
+      } else {
+        recentList.forEach(t => {
+          const tr = document.createElement('tr');
+          const badge = t.type === 'pemasukan' 
+            ? `<span class="badge-type badge-income"><i class="fa-solid fa-arrow-down"></i> Masuk</span>` 
+            : `<span class="badge-type badge-expense"><i class="fa-solid fa-arrow-up"></i> Keluar</span>`;
+
+          const amountColor = t.type === 'pemasukan' ? 'var(--income)' : 'var(--expense)';
+          const prefix = t.type === 'pemasukan' ? '+' : '-';
+
+          tr.innerHTML = `
+            <td>${formatDateDisplay(t.date)}</td>
+            <td>${badge}</td>
+            <td><b>${escapeHtml(t.category)}</b></td>
+            <td style="color: var(--text-sub);">${escapeHtml(t.notes || '-')}</td>
+            <td style="font-weight: 800; color: ${amountColor};">${prefix} ${formatRupiah(t.amount)}</td>
+          `;
+          recentTbody.appendChild(tr);
+        });
+      }
+    }
+
+    // 2. REKAP BULANAN
+    function populateMonthDropdown() {
+      const select = document.getElementById('selectMonthFilter');
+      if (!select) return;
+      select.innerHTML = '';
+
+      const monthsSet = new Set(appData.transactions.map(t => t.monthKey));
+      monthsSet.add(getCurrentMonthKey());
+
+      const sortedMonths = Array.from(monthsSet).sort().reverse();
+      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+      sortedMonths.forEach(mKey => {
+        const [yyyy, mm] = mKey.split('-');
+        const option = document.createElement('option');
+        option.value = mKey;
+        option.innerText = `${monthNames[parseInt(mm)-1]} ${yyyy}`;
+        select.appendChild(option);
+      });
+    }
+
+    function renderHistoryMonth() {
+      const selectElem = document.getElementById('selectMonthFilter');
+      if (!selectElem) return;
+
+      const selectedMonth = selectElem.value || getCurrentMonthKey();
+      const monthTransactions = appData.transactions.filter(t => t.monthKey === selectedMonth);
+
+      const [yyyy, mm] = selectedMonth.split('-');
+      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      
+      document.getElementById('historyTitleLbl').innerText = `Rekap: ${monthNames[parseInt(mm)-1]} ${yyyy}`;
+
+      let monthInc = 0;
+      let monthExp = 0;
+
+      monthTransactions.forEach(t => {
+        if (t.type === 'pemasukan') monthInc += t.amount;
+        else monthExp += t.amount;
+      });
+
+      document.getElementById('historyIncomeTotal').innerText = `+ ${formatRupiah(monthInc)}`;
+      document.getElementById('historyExpenseTotal').innerText = `- ${formatRupiah(monthExp)}`;
+
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '';
+
+      if (monthTransactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-sub); padding:20px;">Tidak ada transaksi di bulan ini.</td></tr>`;
+        return;
+      }
+
+      monthTransactions.forEach(t => {
+        const tr = document.createElement('tr');
+        const badge = t.type === 'pemasukan' 
+          ? `<span class="badge-type badge-income"><i class="fa-solid fa-arrow-down"></i> Masuk</span>` 
+          : `<span class="badge-type badge-expense"><i class="fa-solid fa-arrow-up"></i> Keluar</span>`;
+
+        const amountColor = t.type === 'pemasukan' ? 'var(--income)' : 'var(--expense)';
+        const prefix = t.type === 'pemasukan' ? '+' : '-';
+
+        tr.innerHTML = `
+          <td>${formatDateDisplay(t.date)}</td>
+          <td>${badge}</td>
+          <td><b>${escapeHtml(t.category)}</b></td>
+          <td style="color: var(--text-sub);">${escapeHtml(t.notes || '-')}</td>
+          <td style="font-weight: 800; color: ${amountColor};">${prefix} ${formatRupiah(t.amount)}</td>
+          <td>
+            <button class="btn-action-sm btn-del-sm" onclick="deleteTransaction(${t.id})"><i class="fa-solid fa-trash"></i> Hapus</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // SETTINGS & BACKUP/RESTORE
+    function changePassword() {
+      const newP = document.getElementById('newPassInput').value.trim();
+      if (newP) {
+        localStorage.setItem('hida_family_pass', newP);
+        showToast("🔑 Password berhasil diperbarui!");
+        document.getElementById('newPassInput').value = '';
+      }
+    }
+
+    function exportDataJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `hida_family_tracker_${getCurrentMonthKey()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("📥 Backup data berhasil diunduh!");
+    }
+
+    function importDataJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (importedData && Array.isArray(importedData.transactions)) {
+            appData = importedData;
+            saveData();
+            renderAllViews();
+            showToast("✅ Data berhasil di-import!");
+          } else {
+            alert("❌ Format file JSON tidak valid!");
+          }
+        } catch(err) {
+          alert("❌ Gagal membaca file JSON!");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // UTILITIES
+    function formatRupiah(amount) {
+      return "Rp " + Math.round(amount).toLocaleString('id-ID');
+    }
+
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return '-';
+      const parts = dateStr.split('-');
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function escapeHtml(text) {
+      return (text || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</body>
+</html>
