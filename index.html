@@ -97,7 +97,7 @@
     .status-badge {
       font-size: 11px;
       font-weight: 700;
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 20px;
       display: flex;
       align-items: center;
@@ -372,7 +372,7 @@
         <i class="fa-solid fa-wallet"></i> Hida Family Tracker
       </div>
       <div class="status-badge">
-        <div class="status-dot"></div> Auto Sync Online
+        <div class="status-dot"></div> Auto Sync Active
       </div>
     </div>
 
@@ -391,7 +391,7 @@
         <div class="stat-card balance-card">
           <div class="stat-lbl">Sisa Saldo Saat Ini</div>
           <div class="stat-val" id="dashBalance">Rp 0</div>
-          <div class="stat-subtext">Total Pemasukan - Total Pengeluaran</div>
+          <div class="stat-subtext">Akumulasi Total Masuk - Keluar</div>
         </div>
 
         <div class="stat-card income-card">
@@ -476,7 +476,7 @@
           <span id="amountPreview" style="font-size: 15px; font-weight: 800; color: var(--income);">+ Rp 0</span>
         </div>
 
-        <button class="btn-submit" onclick="submitTransaction()"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan Transaksi (Auto Sync)</button>
+        <button class="btn-submit" onclick="submitTransaction()"><i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi</button>
       </div>
     </div>
 
@@ -524,10 +524,6 @@
     <div id="sec-settings" class="glass-card" style="display:none;">
       <h3 style="margin-bottom: 14px; font-size: 15px;"><i class="fa-solid fa-sliders"></i> Pengaturan Aplikasi</h3>
 
-      <label>URL Firebase Cloud Database (Server Terhubung)</label>
-      <input type="text" id="firebaseUrlInput" placeholder="https://database-kamu-default-rtdb.firebaseio.com/">
-      <button class="btn-submit" onclick="saveFirebaseUrl()" style="margin-bottom: 18px;">Simpan URL Database Baru</button>
-
       <label>Ubah Password Akses Aplikasi</label>
       <input type="password" id="newPassInput" placeholder="Password baru...">
       <button class="btn-submit" onclick="changePassword()" style="margin-bottom: 18px;">Perbarui Password</button>
@@ -550,8 +546,8 @@
 
   <script>
     const DEFAULT_PASS = "maubuka";
-    const DEFAULT_FIREBASE_URL = "https://master-prompt-db-default-rtdb.firebaseio.com/";
-    let firebaseDbUrl = localStorage.getItem('hida_family_firebase_url') || DEFAULT_FIREBASE_URL;
+    // URL Realtime Cloud Endpoint bawaan (REST API)
+    const CLOUD_DB_ENDPOINT = "https://master-prompt-db-default-rtdb.firebaseio.com/hida_family_tracker.json";
 
     let currentSelectedType = "pemasukan";
 
@@ -597,25 +593,22 @@
     // Init App
     async function initApp() {
       setTodayDateInput();
-      document.getElementById('firebaseUrlInput').value = firebaseDbUrl;
       updateCategoryDropdown();
       await loadData();
       renderAllViews();
     }
 
-    // AUTO-POLLING BACKGROUND SYNC (Memeriksa perubahan server setiap 3 detik)
+    // AUTO-BACKGROUND SYNC TERUS-MENERUS (Mengecek update setiap 3 detik)
     setInterval(async () => {
       if (document.getElementById('mainApp').style.display !== 'none') {
         await loadData(true);
       }
     }, 3000);
 
-    // FETCH FROM FIREBASE CLOUD DATABASE
+    // FETCH DATA DARI SERVER CLOUD
     async function loadData(silent = false) {
-      if (!firebaseDbUrl) return;
       try {
-        const cleanUrl = firebaseDbUrl.replace(/\/$/, '');
-        const res = await fetch(`${cleanUrl}/hida_family_tracker.json`);
+        const res = await fetch(CLOUD_DB_ENDPOINT);
         const data = await res.json();
         
         if (data) {
@@ -630,7 +623,7 @@
           }
         }
       } catch(e) {
-        if (!silent) console.error("Firebase load error, fallback to LocalStorage", e);
+        if (!silent) console.error("Cloud fetch fail, fallback to LocalStorage", e);
         loadLocal();
       }
     }
@@ -647,20 +640,17 @@
       }
     }
 
-    // SAVE TO FIREBASE CLOUD & LOCALSTORAGE
+    // SAVE DATA KE CLOUD & LOCALSTORAGE
     async function saveData() {
       localStorage.setItem('hida_family_data', JSON.stringify(appData));
-      if (firebaseDbUrl) {
-        try {
-          const cleanUrl = firebaseDbUrl.replace(/\/$/, '');
-          await fetch(`${cleanUrl}/hida_family_tracker.json`, {
-            method: 'PUT',
-            body: JSON.stringify(appData),
-            headers: { 'Content-Type': 'application/json' }
-          });
-        } catch(e) {
-          console.error("Firebase save sync error", e);
-        }
+      try {
+        await fetch(CLOUD_DB_ENDPOINT, {
+          method: 'PUT',
+          body: JSON.stringify(appData),
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch(e) {
+        console.error("Cloud save sync error", e);
       }
     }
 
@@ -920,14 +910,6 @@
     }
 
     // SETTINGS & BACKUP/RESTORE
-    function saveFirebaseUrl() {
-      const url = document.getElementById('firebaseUrlInput').value.trim();
-      firebaseDbUrl = url || DEFAULT_FIREBASE_URL;
-      localStorage.setItem('hida_family_firebase_url', firebaseDbUrl);
-      showToast("💾 URL Database tersimpan!");
-      loadData();
-    }
-
     function changePassword() {
       const newP = document.getElementById('newPassInput').value.trim();
       if (newP) {
